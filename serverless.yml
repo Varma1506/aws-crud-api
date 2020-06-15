@@ -1,0 +1,117 @@
+service: sls-crud-api-dev
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.tableName}
+      - Effect: Allow
+        Action:
+          - sqs:SendMessage
+        Resource: ${self:custom.queueArn}
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource: ${self:custom.topicArn}
+  
+
+package:
+  patterns:
+    - "!*/**"
+    - build/main
+    - build/cronHandler
+    - build/notification
+
+custom:
+  tableName: ${self:service}-products
+  queueName: notification_queue
+  queueArn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:${self:custom.queueName}
+  topicName: notification-topic-${self:service}
+  topicArn: arn:aws:sns:${self:provider.region}:${aws:accountId}:${self:custom.topicName}
+  fiveMinEventName: five-min-event-${self:service}
+  fiveMinEventArn: arn:aws:events:${self:provider.region}:${aws:accountId}:rule/${self:custom.fiveMinEventName}
+
+functions:
+  tutorialCRUDAPI: 
+    name: sls-crud-api-lambda
+    handler: build/main
+    environment:
+      DYNAMODB_TABLE_NAME: ${self:custom.tableName}
+      NOTIFY_QUEUE_URL: !Ref NotificationQueue
+      NOTIFY_TOPIC_URL: !Ref ProductCreationTopic
+      
+    events:
+      - http:
+          path: product
+          method: post
+      - http:
+          path: product
+          method: get
+      - http:
+          path: product
+          method: put
+      - http:
+          path: product
+          method: delete
+  CronJobLambda:
+    name: sls-cron-job
+    handler: build/cronHandler
+    environment:
+      DYNAMODB_TABLE_NAME: ${self:custom.tableName}
+      NOTIFY_QUEUE_URL: !Ref NotificationQueue
+      NOTIFY_TOPIC_URL: !Ref ProductCreationTopic
+      FIVE_MIN_EVENT_ARN: ${self:custom.fiveMinEventArn}
+    events:
+      - schedule:
+          rate: cron(* * * * ? *)
+      - schedule:
+          name: ${self:custom.fiveMinEventName}
+          rate: rate(2 minutes)
+  NotificationHandler:
+    name: sls-sqstosns-event-handler
+    handler: build/notification
+    environment:
+      NOTIFY_QUEUE_URL: !Ref NotificationQueue
+      NOTIFY_TOPIC_URL: !Ref ProductCreationTopic
+      NOTIFY_TOPIC_ARN: ${self:custom.topicArn}
+    events:
+      - sqs:
+          arn: ${self:custom.queueArn}
+          batchSize: 1
+
+resources:
+  # Resources:
+  #   CRUDTable:
+  #     Type: AWS::DynamoDB::Table
+  #     Properties:
+  #       TableName: ${self:custom.tableName}
+  #       AttributeDefinitions:
+  #         - AttributeName: id
+  #           AttributeType: S
+  #       KeySchema:
+  #         - AttributeName: id
+  #           KeyType: HASH
+  #       ProvisionedThroughput:
+  #         ReadCapacityUnits: 5
+  #         WriteCapacityUnits: 5
+  - ${file(resources/dynamodb-tables.yml)}
+  - ${file('resources/sns-topics.yml')}
+  - ${file('resources/sqs-queues.yml')}
+    
+  
+    # ProductCreationQueue:
+    #   Type: AWS::SQS::Queue
+    #   Properties:
+    #     QueueName: ${self:custom.queueName}
+    # ProductCreationTopic:
+    #   Type: AWS::SNS::Topic
+    #   Properties:
+    #     TopicName: notification-topic-${self:service}

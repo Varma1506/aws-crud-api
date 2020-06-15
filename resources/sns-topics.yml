@@ -1,0 +1,11 @@
+Resources:
+  ProductCreationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: notification-topic-${self:service}
+  TopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: ${self:custom.topicArn}
+      Endpoint: durganarayanavarma@gmail.com
