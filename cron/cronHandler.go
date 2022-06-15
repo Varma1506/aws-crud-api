@@ -13,10 +13,6 @@ import (
 func cronJobHandler(ctx context.Context, cronEvent events.CloudWatchEvent) error {
 
 	resoruces := cronEvent.Resources
-
-	log.Printf("This is the Event logged from Cron Job : ")
-	log.Print(resoruces)
-
 	var body models.CreateRequestBody
 
 	body.Brand = helpers.SetRandomBrand()

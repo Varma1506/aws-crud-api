@@ -21,7 +21,6 @@ func ValidateCreateRequestBody(body models.CreateRequestBody) error {
 }
 
 func SendMessageToSQS(message models.CreateRequestBody) error {
-	log.Print("Sending Message to Queue")
 	queueURL := os.Getenv("NOTIFY_QUEUE_URL")
 	sess, _ := session.NewSession(&aws.Config{
 		Region: aws.String("us-east-1"),

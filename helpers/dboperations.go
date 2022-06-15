@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"time"
@@ -16,7 +15,6 @@ import (
 
 // Function to add new product to the dyanmoDB
 func CreateNewProduct(body models.CreateRequestBody) (string, error) {
-	log.Printf("Creating new product to the DB")
 	id, err := generateUniqueID()
 	//add id to the body object
 	body.Id = id
